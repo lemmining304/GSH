@@ -1,11 +1,10 @@
 import { spawn } from 'child_process'
-import { builtins } from './builtins.js'
 
-export async function execute(ast) {
+export async function execute(ast, config) {
   if (ast.length === 1) {
     const { cmd, args } = ast[0]
-    if (builtins[cmd]) {
-      await builtins[cmd](args)
+    if (config.builtins && config.builtins[cmd]) {
+      await config.builtins[cmd](args)
       return
     }
   }
@@ -13,7 +12,16 @@ export async function execute(ast) {
   let prev = null
 
   for (const node of ast) {
-    const proc = spawn(node.cmd, node.args, { stdio: ['pipe', 'pipe', 'inherit'] })
+    let cmd = node.cmd
+    let args = node.args
+
+    if (config.aliases && config.aliases[cmd]) {
+      const parts = config.aliases[cmd].split(/\s+/)
+      cmd = parts[0]
+      args = parts.slice(1).concat(args)
+    }
+
+    const proc = spawn(cmd, args, { stdio: ['pipe', 'pipe', 'inherit'] })
 
     if (prev) prev.stdout.pipe(proc.stdin)
     prev = proc
